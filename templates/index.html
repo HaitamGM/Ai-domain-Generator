@@ -13,7 +13,7 @@
         <div class="container">
             <div class="header-content">
                 <div class="logo-section">
-                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Cap2Connect Web Solutions" class="main-logo">
+                    <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Cap2Connect Web Solutions" class="main-logo">
                 </div>
                 <div class="header-title">
                     <h1>AI Domain Generator</h1>
@@ -45,7 +45,7 @@
                             >
                             <button type="submit" id="generateBtn" class="generate-btn">
                                 <span class="btn-text">Generate Domains</span>
-                                <i class="fas fa-magic loading-icon" style="display: none;"></i>
+                                <i class="fas fa-magic loading-icon hidden"></i>
                             </button>
                         </div>
                     </div>
@@ -140,7 +140,7 @@
             </div>
             
             <!-- AI Status -->
-            <div id="aiStatus" class="ai-status" style="display: none;">
+            <div id="aiStatus" class="ai-status hidden">
                 <div class="status-content">
                     <div class="status-icon">
                         <i class="fas fa-cog fa-spin"></i>
@@ -153,14 +153,14 @@
 
             <!-- Results Section -->
             <div class="results-section">
-                <div id="resultsTitle" class="results-header" style="display: none;">
+                <div id="resultsTitle" class="results-header hidden">
                     <h2>AI Generated Domain Suggestions</h2>
                     <p>Smart recommendations tailored to your business</p>
                 </div>
                 
                 <div id="results" class="results-container"></div>
                 
-                <div id="loadMoreSection" class="load-more-section" style="display: none;">
+                <div id="loadMoreSection" class="load-more-section hidden">
                     <button id="loadMoreBtn" class="load-more-btn">
                         Load more suggestions
                         <span class="more-count">(10 available)</span>

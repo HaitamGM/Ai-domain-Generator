@@ -1,4 +1,4 @@
-// DOM elements
+// --- DOM Elements ---
 const form = document.getElementById("ideaForm");
 const input = document.getElementById("idea");
 const results = document.getElementById("results");
@@ -13,14 +13,22 @@ const aiMessage = document.getElementById("aiMessage");
 const loadMoreSection = document.getElementById("loadMoreSection");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
 const moreCount = document.querySelector(".more-count");
-const styleSelector = document.getElementById("styleSelector");
 
-let moreDomains = []; // Store additional domains for "Load More"
-let isLoadingMore = false;
-let selectedStyle = "default"; // Default selected style
-let currentRequestId = 0; // To track the latest request
+// --- State ---
+let moreDomains = []; // Stores domains for the "Load More" functionality
+let isLoading = false;
+let selectedStyle = "default";
 
-// Initialize style selector
+// --- Initialization ---
+document.addEventListener("DOMContentLoaded", () => {
+    initializeStyleSelector();
+    initializeExtensionSelector();
+    updateSelectedCount(); // Set initial count
+});
+
+/**
+ * Sets up event listeners for the naming style selector buttons.
+ */
 function initializeStyleSelector() {
     const styleButtons = document.querySelectorAll(".style-btn");
     styleButtons.forEach((button) => {
@@ -33,321 +41,266 @@ function initializeStyleSelector() {
     });
 }
 
-// Update selected extensions count
+/**
+ * Sets up event listeners for the extension checkboxes and select/deselect all buttons.
+ */
+function initializeExtensionSelector() {
+    document.querySelectorAll(".extension-option").forEach((option) => {
+        const checkbox = option.querySelector('input[type="checkbox"]');
+        option.classList.toggle("selected", checkbox.checked); // Set initial visual state
+        checkbox.addEventListener("change", () => {
+            option.classList.toggle("selected", checkbox.checked);
+            updateSelectedCount();
+        });
+    });
+
+    document.getElementById("selectAll").addEventListener("click", () => setAllExtensions(true));
+    document.getElementById("deselectAll").addEventListener("click", () => setAllExtensions(false));
+}
+
+/**
+ * Checks or unchecks all extension checkboxes.
+ * @param {boolean} checked - Whether to check or uncheck the boxes.
+ */
+function setAllExtensions(checked) {
+    document.querySelectorAll('.extension-option input[type="checkbox"]').forEach((checkbox) => {
+        checkbox.checked = checked;
+        checkbox.closest(".extension-option").classList.toggle("selected", checked);
+    });
+    updateSelectedCount();
+}
+
+/**
+ * Updates the UI element showing the number of selected extensions.
+ */
 function updateSelectedCount() {
     const selectedCount = document.querySelectorAll('.extension-option input[type="checkbox"]:checked').length;
     selectedCountElement.textContent = `${selectedCount} selected`;
     generateBtn.disabled = selectedCount === 0;
 }
 
-// Initialize on DOM load
-document.addEventListener("DOMContentLoaded", () => {
-    initializeStyleSelector();
-    updateSelectedCount();
+// --- UI Updates & Animations ---
 
-    // Handle extension option clicks
-    document.querySelectorAll(".extension-option").forEach((option) => {
-        const checkbox = option.querySelector('input[type="checkbox"]');
-
-        const updateVisualState = () => {
-            option.classList.toggle("selected", checkbox.checked);
-            updateSelectedCount();
-        };
-
-        // Set initial state
-        updateVisualState();
-
-        // Let the browser handle the click on the label.
-        // The 'change' event on the checkbox will fire automatically.
-        checkbox.addEventListener("change", updateVisualState);
-    });
-
-    // Select All button
-    document.getElementById("selectAll").addEventListener("click", () => {
-        document.querySelectorAll(".extension-option").forEach((option) => {
-            const checkbox = option.querySelector('input[type="checkbox"]');
-            checkbox.checked = true;
-            option.classList.add("selected");
-        });
-        updateSelectedCount();
-    });
-
-    // Deselect All button
-    document.getElementById("deselectAll").addEventListener("click", () => {
-        document.querySelectorAll(".extension-option").forEach((option) => {
-            const checkbox = option.querySelector('input[type="checkbox"]');
-            checkbox.checked = false;
-            option.classList.remove("selected");
-        });
-        updateSelectedCount();
-    });
-});
-
-// Get selected extensions
-function getSelectedExtensions() {
-    return Array.from(document.querySelectorAll('.extension-option input[type="checkbox"]:checked')).map(
-        (checkbox) => checkbox.closest(".extension-option").dataset.ext,
-    );
-}
-
-// Show AI thinking animation
-function showAIThinking() {
-    aiStatus.style.display = "block";
-    emptyState.style.display = "none";
-    return setInterval(() => {
-        const messages = [
-            "Analyzing your business concept...",
-            "Generating creative suggestions...",
-            "Checking domain availability...",
-            "Almost ready with your results..."
-        ];
-        aiMessage.textContent = messages[Math.floor(Math.random() * messages.length)];
-    }, 1200);
-}
-
-// Hide AI thinking animation
-function hideAIThinking() {
-    aiStatus.style.display = "none";
-}
-
-// Typewriter effect for domain names (faster)
-async function typewriterEffect(element, text, speed = 40) {
-    element.textContent = "";
-    element.style.borderRight = "2px solid #2286c8";
-    for (let i = 0; i < text.length; i++) {
-        element.textContent += text.charAt(i);
-        await new Promise((resolve) => setTimeout(resolve, speed));
-    }
-    // Remove cursor after typing
-    setTimeout(() => {
-        element.style.borderRight = "none";
-    }, 300);
-}
-
-// Create domain row with AI animation (only for available domains)
-async function createDomainRowWithAI(domain, index) {
-    const row = document.createElement("div");
-    row.className = "domain-row ai-generating";
-    row.innerHTML = `
-        <div class="domain-info">
-            <div class="domain-name typing-cursor"></div>
-        </div>
-        <div class="domain-actions">
-            <button class="register-btn" data-domain="${domain.domain}">
-                REGISTER
-            </button>
-            <button class="copy-btn" title="Copy domain name">
-                <i class="fas fa-copy"></i>
-            </button>
-        </div>
-    `;
-    // Add to results with initial animation
-    results.appendChild(row);
-    // Animate row appearance
-    setTimeout(() => {
-        row.classList.remove("ai-generating");
-        row.classList.add("ai-generated");
-    }, 100);
-    // Type the domain name
-    const domainNameEl = row.querySelector(".domain-name");
-    await typewriterEffect(domainNameEl, domain.domain, 40);
-    // Add event listeners
-    row.querySelector(".register-btn").addEventListener("click", () => {
-        const domainName = row.querySelector(".register-btn").dataset.domain;
-        const url = `https://client.capconnect.com/cart.php?a=add&domain=register&query=${domainName}`;
-        window.open(url, "_blank");
-    });
-    
-    // Updated copy button functionality
-    row.querySelector(".copy-btn").addEventListener("click", async () => {
-        try {
-            await navigator.clipboard.writeText(domain.domain);
-            const icon = row.querySelector(".copy-btn i");
-            const originalClass = icon.className;
-            icon.className = "fas fa-check";
-            setTimeout(() => {
-                icon.className = originalClass;
-            }, 1500);
-        } catch (err) {
-            alert(`Domain copied: ${domain.domain}`);
-        }
-    });
-}
-
-// Display available domains as they come in (streaming style)
-let displayedCount = 0;
-let totalExpected = 0;
-async function displayAvailableDomainsStreaming(domains, messageInterval) {
-    resultsTitle.style.display = "block";
-    displayedCount = 0;
-    totalExpected = Math.min(domains.length, 10); // Expecting up to 10 for initial batch
-    for (let i = 0; i < domains.length; i++) {
-        await createDomainRowWithAI(domains[i], i);
-        displayedCount++;
-        // Update AI message with progress
-        aiMessage.textContent = `Found ${displayedCount} available domains...`;
-        // Small delay between domains for visual effect
-        if (i < domains.length - 1) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
-        }
-    }
-    // Final message
-    aiMessage.textContent = `Found ${displayedCount} perfect available domains!`;
-    // Hide AI status after a delay
-    setTimeout(() => {
-        clearInterval(messageInterval);
-        hideAIThinking();
-    }, 1500);
-}
-
-// Extract extension from domain
-function extractExtension(domain) {
-    const parts = domain.split(".");
-    if (parts.length >= 3 && parts[parts.length - 1] === "ma") {
-        return parts.slice(-2).join(".");
-    }
-    return parts[parts.length - 1];
-}
-
-// Filter domains by selected extensions
-function filterDomainsByExtensions(domains, selectedExts) {
-    const allIndividualDomains = [];
-    domains.forEach((domainObj) => {
-        const mainDomainExt = extractExtension(domainObj.domain);
-        if (selectedExts.includes(mainDomainExt)) {
-            allIndividualDomains.push({
-                domain: domainObj.domain,
-                status: domainObj.status,
-                alt: []
-            });
-        }
-        domainObj.alt.forEach((altDomain) => {
-            const altExt = extractExtension(altDomain);
-            if (selectedExts.includes(altExt)) {
-                allIndividualDomains.push({
-                    domain: altDomain,
-                    status: domainObj.status,
-                    alt: []
-                });
-            }
-        });
-    });
-    // Remove duplicates
-    const uniqueDomains = allIndividualDomains.filter(
-        (domain, index, self) => index === self.findIndex((d) => d.domain === domain.domain),
-    );
-    // Sort domains with .com and .ma first
-    return uniqueDomains.sort((a, b) => {
-        const aExt = extractExtension(a.domain);
-        const bExt = extractExtension(b.domain);
-        const getPriority = (ext) => {
-            if (ext === "com") return 1;
-            if (ext === "ma") return 2;
-            return 3;
-        };
-        const aPriority = getPriority(aExt);
-        const bPriority = getPriority(bExt);
-        return aPriority !== bPriority ? aPriority - bPriority : a.domain.localeCompare(b.domain);
-    });
-}
-
-// Form submission with fast availability checking
-form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const idea = input.value.trim();
-    if (!idea) return;
-    const selectedExts = getSelectedExtensions();
-    if (selectedExts.length === 0) {
-        alert("Please select at least one domain extension.");
-        return;
-    }
-    // Show loading state
+/**
+ * Shows the loading state for the generate button.
+ */
+function showLoadingState() {
+    isLoading = true;
     btnText.style.display = "none";
     loadingIcon.style.display = "inline-block";
     generateBtn.disabled = true;
-    // Clear previous results
     results.innerHTML = "";
     resultsTitle.style.display = "none";
     emptyState.style.display = "none";
     loadMoreSection.style.display = "none";
     moreDomains = [];
-    // Start AI thinking animation
+}
+
+/**
+ * Hides the loading state for the generate button.
+ */
+function hideLoadingState() {
+    isLoading = false;
+    btnText.style.display = "inline-block";
+    loadingIcon.style.display = "none";
+    generateBtn.disabled = false;
+}
+
+/**
+ * Displays the "AI is thinking" animation with rotating messages.
+ * @returns {number} The interval ID for the message rotation.
+ */
+function showAIThinking() {
+    aiStatus.style.display = "block";
+    const messages = [
+        "Analyzing your business concept...",
+        "Generating creative suggestions...",
+        "Checking domain availability...",
+        "Almost ready with your results...",
+    ];
+    aiMessage.textContent = messages[0];
+    return setInterval(() => {
+        aiMessage.textContent = messages[Math.floor(Math.random() * messages.length)];
+    }, 1500);
+}
+
+/**
+ * Hides the "AI is thinking" animation.
+ * @param {number} intervalId - The interval ID to clear.
+ */
+function hideAIThinking(intervalId) {
+    clearInterval(intervalId);
+    aiStatus.style.display = "none";
+}
+
+/**
+ * Renders an error message in the results area.
+ * @param {string} title - The title of the error.
+ * @param {string} message - The error message body.
+ */
+function renderError(title, message) {
+    results.innerHTML = `
+        <div class="empty-state">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h3>${title}</h3>
+            <p>${message}</p>
+        </div>`;
+}
+
+// --- Domain Rendering ---
+
+/**
+ * Creates and displays a single domain row with a typewriter effect.
+ * @param {object} domain - The domain object.
+ */
+async function createDomainRow(domain) {
+    const row = document.createElement("div");
+    row.className = "domain-row";
+    row.innerHTML = `
+        <div class="domain-info">
+            <div class="domain-name"></div>
+        </div>
+        <div class="domain-actions">
+            <a href="https://client.capconnect.com/cart.php?a=add&domain=register&query=${domain.domain}" target="_blank" class="register-btn">REGISTER</a>
+            <button class="copy-btn" title="Copy domain name">
+                <i class="fas fa-copy"></i>
+            </button>
+        </div>`;
+
+    results.appendChild(row);
+    await typewriterEffect(row.querySelector(".domain-name"), domain.domain);
+
+    // Add copy functionality
+    row.querySelector(".copy-btn").addEventListener("click", async (e) => {
+        const button = e.currentTarget;
+        try {
+            await navigator.clipboard.writeText(domain.domain);
+            const icon = button.querySelector("i");
+            icon.className = "fas fa-check";
+            setTimeout(() => { icon.className = "fas fa-copy"; }, 1500);
+        } catch (err) {
+            alert(`Domain copied: ${domain.domain}`); // Fallback
+        }
+    });
+}
+
+/**
+ * Simulates a typewriter effect for a given element.
+ * @param {HTMLElement} element - The element to apply the effect to.
+ * @param {string} text - The text to type.
+ * @param {number} [speed=30] - The typing speed in milliseconds.
+ */
+async function typewriterEffect(element, text, speed = 30) {
+    element.style.borderRight = "2px solid #2286c8";
+    for (let i = 0; i < text.length; i++) {
+        element.textContent += text.charAt(i);
+        await new Promise((resolve) => setTimeout(resolve, speed));
+    }
+    element.style.borderRight = "none";
+}
+
+/**
+ * Displays a list of domains with a streaming, animated effect.
+ * @param {Array<object>} domains - The list of domain objects to display.
+ * @param {number} messageInterval - The interval ID for the AI thinking message.
+ */
+async function displayDomainsStreaming(domains, messageInterval) {
+    if (domains.length === 0) {
+        aiMessage.textContent = "No available domains found for your idea.";
+        setTimeout(() => hideAIThinking(messageInterval), 2000);
+        renderError("No available domains found", "Try different extensions or a new business idea.");
+        return;
+    }
+
+    resultsTitle.style.display = "block";
+    for (let i = 0; i < domains.length; i++) {
+        aiMessage.textContent = `Found ${i + 1} available domains...`;
+        await createDomainRow(domains[i]);
+        await new Promise((resolve) => setTimeout(resolve, 100)); // Small delay between rows
+    }
+
+    aiMessage.textContent = `Found ${domains.length} perfect domains!`;
+    setTimeout(() => hideAIThinking(messageInterval), 1500);
+}
+
+// --- API Communication ---
+
+/**
+ * Fetches domain suggestions from the backend API.
+ * @returns {Promise<object>} The JSON response from the API.
+ */
+async function fetchDomainSuggestions() {
+    const idea = input.value.trim();
+    const extensions = Array.from(document.querySelectorAll('.extension-option input:checked'))
+        .map(cb => cb.closest(".extension-option").dataset.ext);
+
+    if (!idea || extensions.length === 0) {
+        alert("Please enter an idea and select at least one extension.");
+        return null;
+    }
+
+    const response = await fetch("/api/suggest-fast", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idea, style: selectedStyle, extensions }),
+    });
+
+    if (!response.ok) {
+        throw new Error("Failed to communicate with the AI. Please try again.");
+    }
+    return response.json();
+}
+
+// --- Event Listeners ---
+
+/**
+ * Main form submission handler.
+ */
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (isLoading) return;
+
+    showLoadingState();
     const messageInterval = showAIThinking();
+
     try {
-        const response = await fetch("/api/suggest-fast", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                idea: idea,
-                style: selectedStyle,
-                extensions: selectedExts
-            }),
-        });
-        if (!response.ok) throw new Error("Failed to generate domains");
-        const data = await response.json();
-        // Filter both initial and more domains
-        const filteredInitial = filterDomainsByExtensions(data.initial, selectedExts);
-        const filteredMore = filterDomainsByExtensions(data.more, selectedExts);
-        if (filteredInitial.length === 0) {
-            clearInterval(messageInterval);
-            hideAIThinking();
-            results.innerHTML = `
-                <div class="empty-state">
-                    <i class="fas fa-exclamation-circle"></i>
-                    <h3>No available domains found</h3>
-                    <p>Try different extensions or modify your business idea</p>
-                </div>
-            `;
-        } else {
-            // Store more domains for later
-            moreDomains = filteredMore;
-            // Display initial available domains with streaming effect
-            await displayAvailableDomainsStreaming(filteredInitial, messageInterval);
-            // Show load more button if we have more domains
-            if (moreDomains.length > 0) {
+        const data = await fetchDomainSuggestions();
+        if (data) {
+            await displayDomainsStreaming(data.initial, messageInterval);
+
+            if (data.more.length > 0) {
+                moreDomains = data.more;
                 loadMoreSection.style.display = "block";
                 moreCount.textContent = `(${moreDomains.length} available)`;
                 loadMoreBtn.disabled = false;
-                loadMoreBtn.innerHTML = `
-                    Load more suggestions
-                    <span class="more-count">(${moreDomains.length} available)</span>
-                `;
+                loadMoreBtn.innerHTML = `Load More Suggestions <span class="more-count">(${moreDomains.length} available)</span>`;
             }
         }
     } catch (error) {
         console.error("Error:", error);
-        clearInterval(messageInterval);
-        hideAIThinking();
-        results.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-exclamation-triangle"></i>
-                <h3>AI encountered an error</h3>
-                <p>Please check your connection and try again</p>
-            </div>
-        `;
+        hideAIThinking(messageInterval);
+        renderError("AI Encountered an Error", "Please check your connection and try again.");
     } finally {
-        btnText.style.display = "inline-block";
-        loadingIcon.style.display = "none";
-        generateBtn.disabled = false;
+        hideLoadingState();
     }
 });
 
-// Load More functionality
+/**
+ * "Load More" button click handler.
+ */
 loadMoreBtn.addEventListener("click", async () => {
-    if (isLoadingMore || moreDomains.length === 0) return;
-    isLoadingMore = true;
+    if (isLoading || moreDomains.length === 0) return;
+
+    isLoading = true;
     loadMoreBtn.disabled = true;
-    loadMoreBtn.innerHTML = `
-        <i class="fas fa-spinner fa-spin"></i>
-        Loading...
-    `;
-    // Show AI thinking for load more
+    loadMoreBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Loading...`;
+
     const messageInterval = showAIThinking();
     aiMessage.textContent = "Loading more available domains...";
-    // Display the pre-generated available domains
-    await displayAvailableDomainsStreaming(moreDomains, messageInterval);
-    // Hide load more section
+
+    await displayDomainsStreaming(moreDomains, messageInterval);
+
     loadMoreSection.style.display = "none";
     moreDomains = [];
-    isLoadingMore = false;
+    isLoading = false;
 });
