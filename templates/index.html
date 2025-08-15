@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Domain Generator - Cap2Connect Web Solutions</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Simplified Header -->
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo-section">
+                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Cap2Connect Web Solutions" class="main-logo">
+                </div>
+                <div class="header-title">
+                    <h1>AI Domain Generator</h1>
+                    <p>Powered by artificial intelligence to find your perfect domain</p>
+                </div>
+                <div class="header-spacer"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="container">
+            <!-- Domain Search Form -->
+            <div class="search-section">
+                <form id="ideaForm" class="domain-form">
+                    <div class="form-group">
+                        <div class="input-label-group">
+                            <label for="idea" class="form-label">What's your business about?</label>
+                            <p class="form-hint">Describe your business idea in a few words</p>
+                        </div>
+                        <div class="input-wrapper">
+                            <input 
+                                type="text" 
+                                id="idea" 
+                                class="form-input"
+                                placeholder="e.g., premium tea shop, online tea store, organic tea distributor..." 
+                                required
+                            >
+                            <button type="submit" id="generateBtn" class="generate-btn">
+                                <span class="btn-text">Generate Domains</span>
+                                <i class="fas fa-magic loading-icon" style="display: none;"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Style Selector -->
+                    <div class="form-group">
+                        <div class="input-label-group">
+                            <label class="form-label">Naming style</label>
+                            <p class="form-hint">Choose how you want your domains to sound</p>
+                        </div>
+                        <div class="style-selector" id="styleSelector">
+                            <button type="button" class="style-btn active" data-style="default">
+                                <i class="fas fa-globe"></i>
+                                Universal
+                            </button>
+                            <button type="button" class="style-btn" data-style="moroccan">
+                                <i class="fas fa-mosque"></i>
+                                Moroccan
+                            </button>
+                            <button type="button" class="style-btn" data-style="professional">
+                                <i class="fas fa-suitcase"></i>
+                                Professional
+                            </button>
+                            <button type="button" class="style-btn" data-style="funny">
+                                <i class="fas fa-laugh-squint"></i>
+                                Creative
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Extensions Section -->
+            <div class="extensions-section">
+                <div class="section-header">
+                    <h3>Choose Domain Extensions</h3>
+                    <div class="extension-controls">
+                        <button type="button" id="selectAll" class="control-btn">Select All</button>
+                        <button type="button" id="deselectAll" class="control-btn">Deselect All</button>
+                        <span id="selectedCount" class="selected-count">2 selected</span>
+                    </div>
+                </div>
+                <div class="extensions-grid" id="extensionsGrid">
+                    <label class="extension-option selected" data-ext="com">
+                        <input type="checkbox" checked>
+                        <span class="extension-text">.com</span>
+                    </label>
+                    <label class="extension-option selected" data-ext="ma">
+                        <input type="checkbox" checked>
+                        <span class="extension-text">.ma</span>
+                    </label>
+                    <label class="extension-option" data-ext="net">
+                        <input type="checkbox">
+                        <span class="extension-text">.net</span>
+                    </label>
+                    <label class="extension-option" data-ext="org">
+                        <input type="checkbox">
+                        <span class="extension-text">.org</span>
+                    </label>
+                    <label class="extension-option" data-ext="info">
+                        <input type="checkbox">
+                        <span class="extension-text">.info</span>
+                    </label>
+                    <label class="extension-option" data-ext="me">
+                        <input type="checkbox">
+                        <span class="extension-text">.me</span>
+                    </label>
+                    <label class="extension-option" data-ext="net.ma">
+                        <input type="checkbox">
+                        <span class="extension-text">.net.ma</span>
+                    </label>
+                    <label class="extension-option" data-ext="co.ma">
+                        <input type="checkbox">
+                        <span class="extension-text">.co.ma</span>
+                    </label>
+                    <label class="extension-option" data-ext="press.ma">
+                        <input type="checkbox">
+                        <span class="extension-text">.press.ma</span>
+                    </label>
+                    <label class="extension-option" data-ext="org.ma">
+                        <input type="checkbox">
+                        <span class="extension-text">.org.ma</span>
+                    </label>
+                    <label class="extension-option" data-ext="gov.ma">
+                        <input type="checkbox">
+                        <span class="extension-text">.gov.ma</span>
+                    </label>
+                    <label class="extension-option" data-ext="ac.ma">
+                        <input type="checkbox">
+                        <span class="extension-text">.ac.ma</span>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- AI Status -->
+            <div id="aiStatus" class="ai-status" style="display: none;">
+                <div class="status-content">
+                    <div class="status-icon">
+                        <i class="fas fa-cog fa-spin"></i>
+                    </div>
+                    <div class="status-message">
+                        <span id="aiMessage">AI is analyzing your business idea...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <div id="resultsTitle" class="results-header" style="display: none;">
+                    <h2>AI Generated Domain Suggestions</h2>
+                    <p>Smart recommendations tailored to your business</p>
+                </div>
+                
+                <div id="results" class="results-container"></div>
+                
+                <div id="loadMoreSection" class="load-more-section" style="display: none;">
+                    <button id="loadMoreBtn" class="load-more-btn">
+                        Load more suggestions
+                        <span class="more-count">(10 available)</span>
+                    </button>
+                </div>
+                
+                <div id="emptyState" class="empty-state">
+                    <div class="empty-icon">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <h3>Ready to find your perfect domain?</h3>
+                    <p>Describe your business idea and let our AI generate perfect domain names!</p>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</html>
