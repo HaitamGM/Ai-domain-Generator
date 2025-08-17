@@ -8,175 +8,115 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
-    <!-- Simplified Header -->
-    <header class="main-header">
-        <div class="container">
-            <div class="header-content">
-                <div class="logo-section">
-                    <img src="{{ url_for('static', filename='logo.png') }}" alt="Cap2Connect Web Solutions" class="main-logo">
-                </div>
+    <div class="background-animation">
+        <div class="circle" id="circle-1"></div>
+        <div class="circle" id="circle-2"></div>
+        <div class="circle" id="circle-3"></div>
+    </div>
+
+    <div class="container">
+        <!-- Header -->
+        <header class="main-header">
+            <div class="logo-section">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Cap2Connect Web Solutions" class="main-logo">
                 <div class="header-title">
                     <h1>AI Domain Generator</h1>
-                    <p>Powered by artificial intelligence to find your perfect domain</p>
+                    <p>Find your perfect domain with the power of AI</p>
                 </div>
-                <div class="header-spacer"></div>
             </div>
-        </div>
-    </header>
+        </header>
 
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="container">
-            <!-- Domain Search Form -->
-            <div class="search-section">
+        <!-- Main Content -->
+        <main class="main-content">
+            <div id="generator" class="generator-card">
+                <!-- Domain Search Form -->
                 <form id="ideaForm" class="domain-form">
-                    <div class="form-group">
-                        <div class="input-label-group">
-                            <label for="idea" class="form-label">What's your business about?</label>
-                            <p class="form-hint">Describe your business idea in a few words</p>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lightbulb input-icon"></i>
+                        <input
+                            type="text"
+                            id="idea"
+                            class="form-input"
+                            placeholder="Describe your business idea..."
+                            required
+                        >
+                        <button type="submit" id="generateBtn" class="generate-btn">
+                            <span class="btn-text">Generate</span>
+                            <i class="fas fa-magic loading-icon" style="display: none;"></i>
+                        </button>
+                    </div>
+
+                    <!-- Style & Extension Controls -->
+                    <div class="controls-wrapper">
+                        <div class="style-selector" id="styleSelector">
+                            <span class="control-label">Style:</span>
+                            <button type="button" class="style-btn active" data-style="default">Universal</button>
+                            <button type="button" class="style-btn" data-style="moroccan">Moroccan</button>
+                            <button type="button" class="style-btn" data-style="professional">Professional</button>
+                            <button type="button" class="style-btn" data-style="funny">Creative</button>
                         </div>
-                        <div class="input-wrapper">
-                            <input 
-                                type="text" 
-                                id="idea" 
-                                class="form-input"
-                                placeholder="e.g., premium tea shop, online tea store, organic tea distributor..." 
-                                required
-                            >
-                            <button type="submit" id="generateBtn" class="generate-btn">
-                                <span class="btn-text">Generate Domains</span>
-                                <i class="fas fa-magic loading-icon" style="display: none;"></i>
+
+                        <div class="extension-toggle">
+                            <span class="control-label">Extensions: <span id="selectedCount">2 selected</span></span>
+                            <button type="button" id="toggleExtensions" class="toggle-extensions-btn">
+                                <i class="fas fa-chevron-down"></i>
                             </button>
                         </div>
                     </div>
-                    <!-- Style Selector -->
-                    <div class="form-group">
-                        <div class="input-label-group">
-                            <label class="form-label">Naming style</label>
-                            <p class="form-hint">Choose how you want your domains to sound</p>
+
+                    <!-- Extensions Grid (Initially Hidden) -->
+                    <div class="extensions-grid-container" id="extensionsContainer" style="display: none;">
+                        <div class="extensions-controls">
+                            <button type="button" id="selectAll" class="control-btn">Select All</button>
+                            <button type="button" id="deselectAll" class="control-btn">Deselect All</button>
                         </div>
-                        <div class="style-selector" id="styleSelector">
-                            <button type="button" class="style-btn active" data-style="default">
-                                <i class="fas fa-globe"></i>
-                                Universal
-                            </button>
-                            <button type="button" class="style-btn" data-style="moroccan">
-                                <i class="fas fa-mosque"></i>
-                                Moroccan
-                            </button>
-                            <button type="button" class="style-btn" data-style="professional">
-                                <i class="fas fa-suitcase"></i>
-                                Professional
-                            </button>
-                            <button type="button" class="style-btn" data-style="funny">
-                                <i class="fas fa-laugh-squint"></i>
-                                Creative
-                            </button>
+                        <div class="extensions-grid" id="extensionsGrid">
+                            <label class="extension-option selected" data-ext="com"><input type="checkbox" checked><span>.com</span></label>
+                            <label class="extension-option selected" data-ext="ma"><input type="checkbox" checked><span>.ma</span></label>
+                            <label class="extension-option" data-ext="net"><input type="checkbox"><span>.net</span></label>
+                            <label class="extension-option" data-ext="org"><input type="checkbox"><span>.org</span></label>
+                            <label class="extension-option" data-ext="info"><input type="checkbox"><span>.info</span></label>
+                            <label class="extension-option" data-ext="me"><input type="checkbox"><span>.me</span></label>
+                            <label class="extension-option" data-ext="net.ma"><input type="checkbox"><span>.net.ma</span></label>
+                            <label class="extension-option" data-ext="co.ma"><input type="checkbox"><span>.co.ma</span></label>
+                            <label class="extension-option" data-ext="press.ma"><input type="checkbox"><span>.press.ma</span></label>
+                            <label class="extension-option" data-ext="org.ma"><input type="checkbox"><span>.org.ma</span></label>
+                            <label class="extension-option" data-ext="gov.ma"><input type="checkbox"><span>.gov.ma</span></label>
+                            <label class="extension-option" data-ext="ac.ma"><input type="checkbox"><span>.ac.ma</span></label>
                         </div>
                     </div>
                 </form>
             </div>
-
-            <!-- Extensions Section -->
-            <div class="extensions-section">
-                <div class="section-header">
-                    <h3>Choose Domain Extensions</h3>
-                    <div class="extension-controls">
-                        <button type="button" id="selectAll" class="control-btn">Select All</button>
-                        <button type="button" id="deselectAll" class="control-btn">Deselect All</button>
-                        <span id="selectedCount" class="selected-count">2 selected</span>
-                    </div>
-                </div>
-                <div class="extensions-grid" id="extensionsGrid">
-                    <label class="extension-option selected" data-ext="com">
-                        <input type="checkbox" checked>
-                        <span class="extension-text">.com</span>
-                    </label>
-                    <label class="extension-option selected" data-ext="ma">
-                        <input type="checkbox" checked>
-                        <span class="extension-text">.ma</span>
-                    </label>
-                    <label class="extension-option" data-ext="net">
-                        <input type="checkbox">
-                        <span class="extension-text">.net</span>
-                    </label>
-                    <label class="extension-option" data-ext="org">
-                        <input type="checkbox">
-                        <span class="extension-text">.org</span>
-                    </label>
-                    <label class="extension-option" data-ext="info">
-                        <input type="checkbox">
-                        <span class="extension-text">.info</span>
-                    </label>
-                    <label class="extension-option" data-ext="me">
-                        <input type="checkbox">
-                        <span class="extension-text">.me</span>
-                    </label>
-                    <label class="extension-option" data-ext="net.ma">
-                        <input type="checkbox">
-                        <span class="extension-text">.net.ma</span>
-                    </label>
-                    <label class="extension-option" data-ext="co.ma">
-                        <input type="checkbox">
-                        <span class="extension-text">.co.ma</span>
-                    </label>
-                    <label class="extension-option" data-ext="press.ma">
-                        <input type="checkbox">
-                        <span class="extension-text">.press.ma</span>
-                    </label>
-                    <label class="extension-option" data-ext="org.ma">
-                        <input type="checkbox">
-                        <span class="extension-text">.org.ma</span>
-                    </label>
-                    <label class="extension-option" data-ext="gov.ma">
-                        <input type="checkbox">
-                        <span class="extension-text">.gov.ma</span>
-                    </label>
-                    <label class="extension-option" data-ext="ac.ma">
-                        <input type="checkbox">
-                        <span class="extension-text">.ac.ma</span>
-                    </label>
-                </div>
-            </div>
             
             <!-- AI Status -->
             <div id="aiStatus" class="ai-status" style="display: none;">
-                <div class="status-content">
-                    <div class="status-icon">
-                        <i class="fas fa-cog fa-spin"></i>
-                    </div>
-                    <div class="status-message">
-                        <span id="aiMessage">AI is analyzing your business idea...</span>
-                    </div>
+                <div class="status-icon">
+                    <i class="fas fa-cog fa-spin"></i>
                 </div>
+                <span id="aiMessage">AI is analyzing your business idea...</span>
             </div>
 
             <!-- Results Section -->
-            <div class="results-section">
-                <div id="resultsTitle" class="results-header" style="display: none;">
-                    <h2>AI Generated Domain Suggestions</h2>
-                    <p>Smart recommendations tailored to your business</p>
-                </div>
-                
-                <div id="results" class="results-container"></div>
-                
-                <div id="loadMoreSection" class="load-more-section" style="display: none;">
-                    <button id="loadMoreBtn" class="load-more-btn">
-                        Load more suggestions
-                        <span class="more-count">(10 available)</span>
-                    </button>
-                </div>
-                
-                <div id="emptyState" class="empty-state">
-                    <div class="empty-icon">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    <h3>Ready to find your perfect domain?</h3>
-                    <p>Describe your business idea and let our AI generate perfect domain names!</p>
-                </div>
+            <div id="results" class="results-container"></div>
+
+            <!-- Load More Section -->
+            <div id="loadMoreSection" class="load-more-section" style="display: none;">
+                <button id="loadMoreBtn" class="load-more-btn">
+                    Load more suggestions
+                    <span class="more-count">(10 available)</span>
+                </button>
             </div>
-        </div>
-    </main>
+
+            <!-- Empty State -->
+            <div id="emptyState" class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-search"></i>
+                </div>
+                <h3>Ready to find your perfect domain?</h3>
+                <p>Describe your business idea and let our AI generate perfect domain names!</p>
+            </div>
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
-<script src="{{ url_for('static', filename='app.js') }}"></script>
 </html>
