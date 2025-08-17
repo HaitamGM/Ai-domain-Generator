@@ -9,6 +9,7 @@ const loadingIcon = generateBtn.querySelector(".loading-icon");
 const selectedCountElement = document.getElementById("selectedCount");
 const aiStatus = document.getElementById("aiStatus");
 const aiMessage = document.getElementById("aiMessage");
+const decodingAnimationElement = document.getElementById("decoding-animation");
 const loadMoreSection = document.getElementById("loadMoreSection");
 const loadMoreBtn = document.getElementById("loadMoreBtn");
 const moreCount = document.querySelector(".more-count");
@@ -17,6 +18,8 @@ const styleSelector = document.getElementById("styleSelector");
 let moreDomains = []; // Store additional domains for "Load More"
 let isLoadingMore = false;
 let selectedStyle = "default"; // Default selected style
+let decodingInterval = null;
+let messageInterval = null;
 
 // Initialize style selector
 function initializeStyleSelector() {
@@ -85,11 +88,8 @@ function getSelectedExtensions() {
     );
 }
 
-// Show AI thinking animation
-function showAIThinking() {
-    aiStatus.style.display = "flex";
-    emptyState.style.display = "none";
-    results.innerHTML = "";
+function startMessageCycling() {
+    clearInterval(messageInterval);
     const messages = [
         "Analyzing your business concept...",
         "Generating creative suggestions...",
@@ -99,18 +99,35 @@ function showAIThinking() {
     ];
     let messageIndex = 0;
     aiMessage.textContent = messages[messageIndex];
-    return setInterval(() => {
+    messageInterval = setInterval(() => {
         messageIndex = (messageIndex + 1) % messages.length;
         aiMessage.textContent = messages[messageIndex];
     }, 2000);
 }
 
-// Hide AI thinking animation
-function hideAIThinking() {
-    aiStatus.style.display = "none";
+function runLiveSuggestionAnimation(domains) {
+    return new Promise(resolve => {
+        let animationIndex = 0;
+        decodingInterval = setInterval(() => {
+            const domain = domains[animationIndex % domains.length];
+            decodingAnimationElement.textContent = domain.domain;
+            animationIndex++;
+        }, 150); // Fast cycle time
+
+        // Let the animation run for a set time
+        setTimeout(() => {
+            clearInterval(decodingInterval);
+            resolve();
+        }, 3000); // Run for 3 seconds
+    });
 }
 
-// Typewriter effect for domain names
+function hideAIThinking() {
+    aiStatus.style.display = "none";
+    clearInterval(decodingInterval);
+    clearInterval(messageInterval);
+}
+
 async function typewriterEffect(element, text, speed = 30) {
     element.innerHTML = '<span class="typing-cursor"></span>';
     const cursor = element.querySelector('.typing-cursor');
@@ -121,7 +138,6 @@ async function typewriterEffect(element, text, speed = 30) {
     cursor.remove();
 }
 
-// Create domain row with AI animation
 async function createDomainRowWithAI(domain) {
     const row = document.createElement("div");
     row.className = "domain-row";
@@ -140,7 +156,6 @@ async function createDomainRowWithAI(domain) {
     `;
     results.appendChild(row);
 
-    // Animate row appearance
     await new Promise(resolve => setTimeout(resolve, 50));
     row.style.opacity = '1';
 
@@ -150,7 +165,7 @@ async function createDomainRowWithAI(domain) {
     row.querySelector(".register-btn").addEventListener("click", () => {
         window.open(`https://client.capconnect.com/cart.php?a=add&domain=register&query=${domain.domain}`, "_blank");
     });
-    
+
     row.querySelector(".copy-btn").addEventListener("click", async () => {
         try {
             await navigator.clipboard.writeText(domain.domain);
@@ -163,36 +178,16 @@ async function createDomainRowWithAI(domain) {
     });
 }
 
-// Display available domains with streaming effect
-async function displayAvailableDomainsStreaming(domains, messageInterval) {
-    if (domains.length === 0 && results.children.length === 0) {
-        clearInterval(messageInterval);
-        hideAIThinking();
-        results.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-exclamation-circle"></i>
-                <h3>No available domains found</h3>
-                <p>Try different extensions or modify your business idea</p>
-            </div>
-        `;
-        return;
-    }
-
+async function displayAvailableDomainsStreaming(domains) {
     for (const domain of domains) {
-        aiMessage.textContent = `Found: ${domain.domain}`;
         await createDomainRowWithAI(domain);
         await new Promise((resolve) => setTimeout(resolve, 100));
     }
-
-    clearInterval(messageInterval);
-    setTimeout(hideAIThinking, 1000);
 }
 
-// Filter domains by selected extensions
 function filterDomainsByExtensions(domains, selectedExts) {
     const seen = new Set();
     const filtered = [];
-
     domains.forEach(d => {
         const mainExt = d.domain.split('.').pop();
         if (selectedExts.includes(mainExt) && !seen.has(d.domain)) {
@@ -210,7 +205,6 @@ function filterDomainsByExtensions(domains, selectedExts) {
     return filtered;
 }
 
-// Form submission
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const idea = input.value.trim();
@@ -227,8 +221,11 @@ form.addEventListener("submit", async (e) => {
     generateBtn.disabled = true;
     loadMoreSection.style.display = "none";
     moreDomains = [];
-
-    const messageInterval = showAIThinking();
+    results.innerHTML = "";
+    emptyState.style.display = "none";
+    aiStatus.style.display = "flex";
+    decodingAnimationElement.style.display = 'none';
+    aiMessage.textContent = "Contacting AI...";
 
     try {
         const response = await fetch("/api/suggest-fast", {
@@ -240,11 +237,28 @@ form.addEventListener("submit", async (e) => {
         if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
 
         const data = await response.json();
-
         const initialDomains = filterDomainsByExtensions(data.initial, selectedExts);
         moreDomains = filterDomainsByExtensions(data.more, selectedExts);
+        const allSuggestions = [...initialDomains, ...moreDomains];
 
-        await displayAvailableDomainsStreaming(initialDomains, messageInterval);
+        if (allSuggestions.length === 0) {
+            hideAIThinking();
+            results.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-exclamation-circle"></i>
+                    <h3>No available domains found</h3>
+                    <p>Try different extensions or modify your business idea</p>
+                </div>
+            `;
+            return;
+        }
+
+        decodingAnimationElement.style.display = 'block';
+        startMessageCycling();
+        await runLiveSuggestionAnimation(allSuggestions);
+
+        hideAIThinking();
+        await displayAvailableDomainsStreaming(initialDomains);
 
         if (moreDomains.length > 0) {
             loadMoreSection.style.display = "block";
@@ -254,7 +268,6 @@ form.addEventListener("submit", async (e) => {
 
     } catch (error) {
         console.error("Error:", error);
-        clearInterval(messageInterval);
         hideAIThinking();
         results.innerHTML = `
             <div class="empty-state">
@@ -270,19 +283,17 @@ form.addEventListener("submit", async (e) => {
     }
 });
 
-// Load More functionality
 loadMoreBtn.addEventListener("click", async () => {
     if (isLoadingMore || moreDomains.length === 0) return;
     isLoadingMore = true;
+    const originalText = loadMoreBtn.innerHTML;
     loadMoreBtn.disabled = true;
     loadMoreBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Loading...`;
 
-    const messageInterval = showAIThinking();
-    aiMessage.textContent = "Loading more available domains...";
-
-    await displayAvailableDomainsStreaming(moreDomains, messageInterval);
+    await displayAvailableDomainsStreaming(moreDomains);
 
     loadMoreSection.style.display = "none";
     moreDomains = [];
     isLoadingMore = false;
+    loadMoreBtn.innerHTML = originalText;
 });
