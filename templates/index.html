@@ -24,6 +24,13 @@
                     <p>Find your perfect domain with the power of AI</p>
                 </div>
             </div>
+            
+            <!-- Theme Toggle Button -->
+            <div class="theme-toggle">
+                <button id="themeToggle" class="theme-toggle-btn" title="Toggle light/dark mode">
+                    <i class="fas fa-sun theme-icon"></i>
+                </button>
+            </div>
         </header>
 
         <!-- Main Content -->
@@ -64,25 +71,134 @@
                         </div>
                     </div>
 
-                    <!-- Extensions Grid (Initially Hidden) -->
+                    <!-- Extensions Grid (Updated 2x6 Layout) -->
                     <div class="extensions-grid-container" id="extensionsContainer" style="display: none;">
                         <div class="extensions-controls">
                             <button type="button" id="selectAll" class="control-btn">Select All</button>
                             <button type="button" id="deselectAll" class="control-btn">Deselect All</button>
                         </div>
-                        <div class="extensions-grid" id="extensionsGrid">
-                            <label class="extension-option selected" data-ext="com"><input type="checkbox" checked><span>.com</span></label>
-                            <label class="extension-option selected" data-ext="ma"><input type="checkbox" checked><span>.ma</span></label>
-                            <label class="extension-option" data-ext="net"><input type="checkbox"><span>.net</span></label>
-                            <label class="extension-option" data-ext="org"><input type="checkbox"><span>.org</span></label>
-                            <label class="extension-option" data-ext="info"><input type="checkbox"><span>.info</span></label>
-                            <label class="extension-option" data-ext="me"><input type="checkbox"><span>.me</span></label>
-                            <label class="extension-option" data-ext="net.ma"><input type="checkbox"><span>.net.ma</span></label>
-                            <label class="extension-option" data-ext="co.ma"><input type="checkbox"><span>.co.ma</span></label>
-                            <label class="extension-option" data-ext="press.ma"><input type="checkbox"><span>.press.ma</span></label>
-                            <label class="extension-option" data-ext="org.ma"><input type="checkbox"><span>.org.ma</span></label>
-                            <label class="extension-option" data-ext="gov.ma"><input type="checkbox"><span>.gov.ma</span></label>
-                            <label class="extension-option" data-ext="ac.ma"><input type="checkbox"><span>.ac.ma</span></label>
+                        <div class="extensions-grid-2x6" id="extensionsGrid">
+                            <!-- Row 1 -->
+                            <label class="extension-checkbox-item selected" data-ext="com">
+                                <input type="checkbox" checked>
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.com</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item selected" data-ext="ma">
+                                <input type="checkbox" checked>
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.ma</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item" data-ext="net">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.net</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item" data-ext="org">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.org</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item" data-ext="info">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.info</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item" data-ext="me">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.me</span>
+                                </div>
+                            </label>
+                            
+                            <!-- Row 2 -->
+                            <label class="extension-checkbox-item" data-ext="net.ma">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.net.ma</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item" data-ext="co.ma">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.co.ma</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item" data-ext="press.ma">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.press.ma</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item" data-ext="org.ma">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.org.ma</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item" data-ext="gov.ma">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.gov.ma</span>
+                                </div>
+                            </label>
+                            
+                            <label class="extension-checkbox-item" data-ext="ac.ma">
+                                <input type="checkbox">
+                                <div class="checkbox-wrapper">
+                                    <div class="custom-checkbox">
+                                        <i class="fas fa-check"></i>
+                                    </div>
+                                    <span class="extension-label">.ac.ma</span>
+                                </div>
+                            </label>
                         </div>
                     </div>
                 </form>
