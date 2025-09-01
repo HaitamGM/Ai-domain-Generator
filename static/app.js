@@ -474,16 +474,6 @@ document.addEventListener("DOMContentLoaded", () => {
     updateSelectedCount()
   })
 
-  // Toggle extensions grid
-  const extensionsContainer = document.getElementById("extensionsContainer")
-  const toggleExtensionsBtn = document.getElementById("toggleExtensions")
-  toggleExtensionsBtn.addEventListener("click", (e) => {
-    e.preventDefault()
-    const isHidden = extensionsContainer.style.display === "none"
-    extensionsContainer.style.display = isHidden ? "block" : "none"
-    toggleExtensionsBtn.querySelector("i").classList.toggle("fa-chevron-down", !isHidden)
-    toggleExtensionsBtn.querySelector("i").classList.toggle("fa-chevron-up", isHidden)
-  })
 })
 
 function startMessageCycling() {

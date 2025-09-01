@@ -130,7 +130,8 @@ body {
 
 /* --- Header --- */
 .main-header {
-    padding: 35px 0 45px 0;
+    padding: 35px 0;
+    margin-bottom: 45px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -163,7 +164,7 @@ body {
     color: var(--text-light);
     text-shadow: 0 0 15px var(--shadow-color);
     transition: color 0.3s ease, text-shadow 0.3s ease;
-    margin-bottom: 0px;
+    margin-bottom: 10px;
     background: linear-gradient(135deg, var(--primary-accent), var(--text-light));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -184,6 +185,7 @@ body {
     transition: color 0.3s ease;
     font-weight: 400;
     letter-spacing: 0.5px;
+    text-align: center;
 }
 
 /* --- Theme Toggle --- */
@@ -374,6 +376,8 @@ body {
 .extension-toggle {
     display: flex;
     align-items: center;
+    justify-content: space-between;
+    width: 100%;
 }
 
 .toggle-extensions-btn {
@@ -405,7 +409,6 @@ body {
 .extensions-controls {
     display: flex;
     gap: 12px;
-    margin-bottom: 20px;
 }
 
 .control-btn {
@@ -438,14 +441,14 @@ body {
 .extension-checkbox-item {
     background: var(--bg-dark-2);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 15px 12px;
+    border-radius: 6px;
+    padding: 10px 12px;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 60px;
+    min-height: 50px;
     position: relative;
     overflow: hidden;
 }
