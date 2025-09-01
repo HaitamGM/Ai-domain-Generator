@@ -358,7 +358,6 @@ const loadingIcon = generateBtn.querySelector(".loading-icon")
 const selectedCountElement = document.getElementById("selectedCount")
 const aiStatus = document.getElementById("aiStatus")
 const aiMessage = document.getElementById("aiMessage")
-const decodingAnimationElement = document.getElementById("decoding-animation")
 const loadMoreSection = document.getElementById("loadMoreSection")
 const loadMoreBtn = document.getElementById("loadMoreBtn")
 const moreCount = document.querySelector(".more-count")
@@ -369,7 +368,6 @@ const themeIcon = themeToggle.querySelector(".theme-icon")
 let moreDomains = [] // Store additional domains for "Load More"
 let isLoadingMore = false
 let selectedStyle = "default" // Default selected style
-let decodingInterval = null
 let messageInterval = null
 
 // Theme Management
@@ -474,6 +472,35 @@ document.addEventListener("DOMContentLoaded", () => {
     updateSelectedCount()
   })
 
+  // Interactive background
+  const circles = document.querySelectorAll(".circle")
+  let mouseX = 0
+  let mouseY = 0
+
+  window.addEventListener("mousemove", (e) => {
+    mouseX = e.clientX
+    mouseY = e.clientY
+  })
+
+  function animateCircles() {
+    const x = (mouseX / window.innerWidth) * 100
+    const y = (mouseY / window.innerHeight) * 100
+
+    circles.forEach((circle, i) => {
+      const sensitivity = (i + 1) * 0.1
+      const offsetX = (50 - x) * sensitivity
+      const offsetY = (50 - y) * sensitivity
+
+      const t = Date.now() * 0.0002
+      const pulseFactor = Math.sin(t * (i + 1) * 0.5) * 0.1 + 1
+
+      circle.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${pulseFactor})`
+    })
+
+    requestAnimationFrame(animateCircles)
+  }
+
+  animateCircles()
 })
 
 function startMessageCycling() {
@@ -493,26 +520,8 @@ function startMessageCycling() {
   }, 2000)
 }
 
-function runLiveSuggestionAnimation(domains) {
-  return new Promise((resolve) => {
-    let animationIndex = 0
-    decodingInterval = setInterval(() => {
-      const domain = domains[animationIndex % domains.length]
-      decodingAnimationElement.textContent = domain.domain
-      animationIndex++
-    }, 150) // Fast cycle time
-
-    // Let the animation run for a set time
-    setTimeout(() => {
-      clearInterval(decodingInterval)
-      resolve()
-    }, 3000) // Run for 3 seconds
-  })
-}
-
 function hideAIThinking() {
   aiStatus.style.display = "none"
-  clearInterval(decodingInterval)
   clearInterval(messageInterval)
 }
 
@@ -614,7 +623,6 @@ form.addEventListener("submit", async (e) => {
   results.innerHTML = ""
   emptyState.style.display = "none"
   aiStatus.style.display = "flex"
-  decodingAnimationElement.style.display = "none"
   aiMessage.textContent = "Initializing comprehensive domain analysis..."
 
   try {
@@ -643,9 +651,10 @@ form.addEventListener("submit", async (e) => {
       return
     }
 
-    decodingAnimationElement.style.display = "block"
     startMessageCycling()
-    await runLiveSuggestionAnimation(allSuggestions)
+
+    // Add a short delay to simulate the AI thinking, since we removed the longer animation
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     hideAIThinking()
     await displayAvailableDomainsStreaming(initialDomains)
