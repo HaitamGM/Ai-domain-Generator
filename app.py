@@ -1,10 +1,17 @@
-import os, json, re, dotenv, google.generativeai as genai
-from flask import Flask, render_template, request, jsonify
-import socket
-from functools import lru_cache
+import os
+import json
+import re
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import dotenv
+import google.generativeai as genai
+import redis
+import whois
+from flask import Flask, jsonify, render_template, request
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 dotenv.load_dotenv()
 
@@ -14,9 +21,13 @@ genai.configure(api_key=GEN_API_KEY)
 MODEL_NAME = "gemini-2.5-flash"
 N_SUGGESTIONS = 20
 
-# Simple cache for domain availability checks
-domain_cache = {}
-cache_lock = threading.Lock()
+# Connect to Redis
+redis_client = redis.Redis(
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", 6379)),
+    db=int(os.getenv("REDIS_DB", 0)),
+    decode_responses=True
+)
 
 # Style prompts for different domain generation styles
 STYLE_PROMPTS = {
@@ -55,136 +66,64 @@ def get_style_prompt(style):
     """Get the appropriate style prompt"""
     return STYLE_PROMPTS.get(style, STYLE_PROMPTS["default"])
 
-PROMPT = """Generate {n} domain names for this business: {idea}
+SYSTEM_INSTRUCTION = """You are an expert domain name generator.
+Your output MUST be a valid JSON array of objects.
+Each object must have a single key named "domain".
+Do NOT include any markdown, backticks, comments, or any text outside of the JSON array."""
 
-Style: {style_prompt}
+PROMPT = """
+Generate exactly {n} domain names for a business with the following idea: "{idea}"
 
-CRITICAL REQUIREMENTS:
-- Use ONLY these extensions: {extensions_str}
-- DISTRIBUTE EVENLY across ALL selected extensions
-- If you have {num_extensions} extensions, create roughly equal amounts for each
-- DO NOT favor any single extension over others
+Follow these rules precisely:
+1.  **Style**: {style_prompt}
+2.  **Extensions**: You must use *only* the following extensions: {extensions_str}.
+3.  **Distribution**: Distribute the domains as evenly as possible across all {num_extensions} extensions. If you have 2 extensions and need 10 domains, generate 5 for each.
+4.  **Format**: Return *only* a raw JSON array of objects.
 
-Examples with your extensions:
-{distribution_examples}
-
-Return as JSON array:
+Example of a valid response for 3 domains with extensions .com and .net:
 [
-{{"domain":"example{example_ext}"}},
-{{"domain":"business{example_ext2}"}},
-{{"domain":"startup{example_ext3}"}}
+    {{"domain": "example1.com"}},
+    {{"domain": "example2.net"}},
+    {{"domain": "example3.com"}}
 ]
+"""
 
-Remember: DISTRIBUTE EVENLY across: {extensions_str}"""
+def is_domain_available(domain: str) -> bool:
+    """
+    Check if a domain is available using python-whois and a Redis cache.
+    """
+    # Check cache first
+    cached_result = redis_client.get(domain)
+    if cached_result is not None:
+        return cached_result == "True"
 
-def is_domain_available_fast(domain: str) -> bool:
-    """
-    Fast domain availability check with optimized timeouts
-    """
-    with cache_lock:
-        if domain in domain_cache:
-            return domain_cache[domain]
-    
     try:
-        domain_lower = domain.lower()
-        
-        # Determine WHOIS server based on extension
-        if domain_lower.endswith('.ma') or any(domain_lower.endswith(ext) for ext in ['.co.ma', '.net.ma', '.org.ma', '.ac.ma', '.press.ma', '.gov.ma']):
-            whois_server = 'whois.registre.ma'
-            timeout = 8  # Shorter timeout for .ma domains
-        elif domain_lower.endswith('.com') or domain_lower.endswith('.net'):
-            whois_server = 'whois.verisign-grs.com'
-            timeout = 5
-        elif domain_lower.endswith('.org'):
-            whois_server = 'whois.pir.org'
-            timeout = 5
-        elif domain_lower.endswith('.info'):
-            whois_server = 'whois.afilias.net'
-            timeout = 5
-        elif domain_lower.endswith('.me'):
-            whois_server = 'whois.nic.me'
-            timeout = 5
-        else:
-            whois_server = 'whois.registre.ma'
-            timeout = 8
-        
-        port = 43
-        
-        # Create socket connection with optimized timeout
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(timeout)
-        
-        try:
-            sock.connect((whois_server, port))
-            query = f"{domain}\r\n"
-            sock.send(query.encode('utf-8'))
-            
-            response = b""
-            start_time = time.time()
-            while True:
-                # Break if taking too long
-                if time.time() - start_time > timeout:
-                    break
-                    
-                try:
-                    data = sock.recv(4096)
-                    if not data:
-                        break
-                    response += data
-                except socket.timeout:
-                    break
-            
-            response_text = response.decode('utf-8', errors='ignore').lower()
-            
-            # Check for availability indicators
-            availability_indicators = [
-                'no match', 'not found', 'no entries found', 'status: free',
-                'no data found', 'not registered', 'available'
-            ]
-            
-            unavailable_indicators = [
-                'creation date', 'created on', 'registered on', 'registration date',
-                'domain status: ok', 'status: active', 'registrar:'
-            ]
-            
-            # Determine availability
-            is_available = any(indicator in response_text for indicator in availability_indicators)
-            
-            if not is_available:
-                has_unavailable_indicator = any(indicator in response_text for indicator in unavailable_indicators)
-                is_available = not has_unavailable_indicator
-            
-            with cache_lock:
-                domain_cache[domain] = is_available
-            return is_available
-            
-        finally:
-            sock.close()
-            
+        w = whois.whois(domain)
+        # If the domain has a creation_date, it's likely registered
+        is_available = not bool(w.creation_date)
+    except whois.parser.PywhoisError:
+        # The library often raises this error for available domains
+        is_available = True
     except Exception as e:
-        print(f"Error checking domain {domain}: {str(e)}")
-        with cache_lock:
-            domain_cache[domain] = False
-        return False
+        print(f"Error checking domain {domain}: {e}")
+        is_available = False
 
-def check_domains_parallel_fast(domains_list, max_workers=10):
-    """Check multiple domains in parallel with higher concurrency"""
+    # Cache the result for 24 hours
+    redis_client.setex(domain, 86400, str(is_available))
+    return is_available
+
+def check_domains_parallel(domains_list, max_workers=15):
+    """Check multiple domains in parallel using a thread pool."""
     results = {}
-    
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        future_to_domain = {
-            executor.submit(is_domain_available_fast, domain): domain 
-            for domain in domains_list
-        }
-        
+        future_to_domain = {executor.submit(is_domain_available, domain): domain for domain in domains_list}
         for future in as_completed(future_to_domain):
             domain = future_to_domain[future]
             try:
                 results[domain] = future.result()
             except Exception as e:
-                print(f"Error checking {domain}: {e}")
+                print(f"Error checking domain {domain} in parallel: {e}")
                 results[domain] = False
-    
     return results
 
 def validate_domain_extensions(domains, allowed_extensions):
@@ -213,79 +152,69 @@ def suggest_domains(idea: str, style: str = "default", extensions: list = None, 
     
     extensions_str = ", ".join(extensions)
     style_prompt = get_style_prompt(style)
-    
-    example_ext = extensions[0] if extensions else ".com"
-    example_ext2 = extensions[1] if len(extensions) > 1 else extensions[0]
-    example_ext3 = extensions[2] if len(extensions) > 2 else extensions[0]
-    
     num_extensions = len(extensions)
-    distribution_examples = []
-    for i, ext in enumerate(extensions[:3]):  # Show first 3 extensions as examples
-        distribution_examples.append(f"example{i+1}{ext}")
-    distribution_examples_str = ", ".join(distribution_examples)
     
     prompt = PROMPT.format(
-        idea=idea.strip(),
+        idea=idea,
         style_prompt=style_prompt,
         n=n,
         extensions_str=extensions_str,
-        num_extensions=num_extensions,
-        distribution_examples=distribution_examples_str,
-        example_ext=example_ext,
-        example_ext2=example_ext2,
-        example_ext3=example_ext3
+        num_extensions=num_extensions
     )
     
-    print(f"Sending prompt to Gemini with style: {style}")
-    print(f"Selected extensions: {extensions}")
+    print(f"Sending prompt to Gemini with style: {style}, extensions: {extensions}")
     
-    try:
-        resp = genai.GenerativeModel(MODEL_NAME).generate_content(prompt)
-        text = resp.text.strip()
-        print(f"Received response from Gemini: {text[:200]}...")
-        
-        text = text.replace('\`\`\`json', '').replace('\`\`\`', '').strip()
-        
-        # Try to find JSON array in the response
-        json_match = re.search(r'\[.*?\]', text, re.DOTALL)
-        if json_match:
+    retries = 3
+    for attempt in range(retries):
+        try:
+            model = genai.GenerativeModel(
+                MODEL_NAME,
+                system_instruction=SYSTEM_INSTRUCTION
+            )
+            resp = model.generate_content(prompt)
+            text = resp.text.strip()
+
+            # Clean the response text
+            text = text.replace('```json', '').replace('```', '').strip()
+
+            json_match = re.search(r'\[.*\]', text, re.DOTALL)
+            if not json_match:
+                print("No valid JSON array found in response.")
+                continue
+
             json_text = json_match.group(0)
-            try:
-                domains = json.loads(json_text)
-                print(f"Successfully parsed {len(domains)} domains from JSON")
-                
-                valid_domains = validate_domain_extensions(domains, extensions)
-                print(f"After validation: {len(valid_domains)} domains with correct extensions")
-                
-                extension_counts = {}
-                for domain_obj in valid_domains:
-                    domain = domain_obj["domain"]
-                    ext = "." + domain.split(".")[-1] if "." in domain else ""
-                    if domain.endswith(".ma") and len(domain.split(".")) >= 3:
-                        ext = "." + ".".join(domain.split(".")[-2:])
-                    extension_counts[ext] = extension_counts.get(ext, 0) + 1
-                
-                print(f"Extension distribution: {extension_counts}")
-                
-                # If we have good distribution and enough domains, return them
-                if len(valid_domains) >= 5 and len(extension_counts) >= min(2, len(extensions)):
-                    return valid_domains
-                else:
-                    print("Poor distribution or not enough domains, using enhanced fallback")
-                    return generate_enhanced_fallback_domains(idea, style, extensions, n)
-                    
-            except json.JSONDecodeError as e:
-                print(f"JSON parsing error: {e}")
-                print("Using enhanced fallback domain generation")
-                return generate_enhanced_fallback_domains(idea, style, extensions, n)
-        else:
-            print("No JSON array found in response, using enhanced fallback")
-            return generate_enhanced_fallback_domains(idea, style, extensions, n)
+            domains = json.loads(json_text)
             
-    except Exception as e:
-        print(f"Error in suggest_domains: {str(e)}")
-        print("Using enhanced fallback domain generation")
-        return generate_enhanced_fallback_domains(idea, style, extensions, n)
+            print(f"Successfully parsed {len(domains)} domains from JSON on attempt {attempt + 1}")
+
+            valid_domains = validate_domain_extensions(domains, extensions)
+            print(f"After validation: {len(valid_domains)} domains with correct extensions")
+
+            extension_counts = {}
+            for domain_obj in valid_domains:
+                domain = domain_obj["domain"]
+                ext = extract_extension(domain)
+                extension_counts[ext] = extension_counts.get(ext, 0) + 1
+
+            print(f"Extension distribution: {extension_counts}")
+
+            # If we have a reasonable number of domains and good distribution, return them
+            if len(valid_domains) >= n * 0.5 and len(extension_counts) >= min(num_extensions, 2):
+                return valid_domains
+            else:
+                print("Poor distribution or not enough domains, will retry if possible.")
+
+        except json.JSONDecodeError as e:
+            print(f"JSON parsing error on attempt {attempt + 1}: {e}")
+        except Exception as e:
+            print(f"Error in suggest_domains on attempt {attempt + 1}: {e}")
+
+        if attempt < retries - 1:
+            print("Retrying...")
+            time.sleep(1.5) # Wait before retrying
+
+    print("All Gemini API attempts failed or yielded poor results. Using enhanced fallback.")
+    return generate_enhanced_fallback_domains(idea, style, extensions, n)
 
 def generate_enhanced_fallback_domains(idea, style="default", extensions=None, n=20):
     if not extensions:
@@ -293,72 +222,49 @@ def generate_enhanced_fallback_domains(idea, style="default", extensions=None, n
     
     print(f"Generating enhanced fallback domains with extensions: {extensions}")
     
-    clean_idea = re.sub(r'[^a-zA-Z0-9]', '', idea.lower())
+    clean_idea = re.sub(r'[^a-zA-Z0-9\s]', '', idea.lower()).strip()
+    words = clean_idea.split()
+    key_words = [word for word in words if len(word) > 3 and word not in ['the', 'and', 'for', 'with', 'a', 'an']]
     
-    # Extract key words from the idea
-    words = idea.lower().split()
-    key_words = [word for word in words if len(word) > 2 and word not in ['the', 'and', 'for', 'with', 'have', 'hello']]
+    base_names = set()
     
-    base_names = []
-    
-    # Generate combinations based on key words
     if key_words:
-        main_word = key_words[0][:6]  # First key word
+        main_word = key_words[0][:10]
+        base_names.add(main_word)
+        base_names.add(f"get{main_word}")
+        base_names.add(f"my{main_word}")
+        base_names.add(f"{main_word}app")
+        base_names.add(f"{main_word}pro")
+        base_names.add(f"{main_word}hub")
+        base_names.add(f"{main_word}lab")
         
+        if len(key_words) > 1:
+            second_word = key_words[1][:8]
+            base_names.add(f"{main_word}{second_word}")
+            base_names.add(f"{main_word}-{second_word}")
+
         if style == "moroccan":
-            base_names = [
-                f"dar{main_word}", f"souk{main_word}", f"atlas{main_word}",
-                f"casa{main_word}", f"maroc{main_word}", f"medina{main_word}",
-                f"riad{main_word}", f"fes{main_word}", f"rabat{main_word}",
-                f"agadir{main_word}", f"tanger{main_word}", f"sahara{main_word}"
-            ]
+            base_names.update([f"dar{main_word}", f"souk{main_word}", f"atlas{main_word}", f"maroc{main_word}"])
         elif style == "professional":
-            base_names = [
-                f"{main_word}pro", f"{main_word}solutions", f"global{main_word}",
-                f"{main_word}group", f"elite{main_word}", f"{main_word}corp",
-                f"prime{main_word}", f"{main_word}systems", f"apex{main_word}",
-                f"{main_word}enterprise", f"summit{main_word}", f"nexus{main_word}"
-            ]
+            base_names.update([f"{main_word}solutions", f"global{main_word}", f"{main_word}corp", f"{main_word}group"])
         elif style == "funny":
-            base_names = [
-                f"{main_word}ify", f"super{main_word}", f"{main_word}mania",
-                f"mega{main_word}", f"{main_word}zilla", f"ultra{main_word}",
-                f"{main_word}rama", f"crazy{main_word}", f"{main_word}tastic",
-                f"epic{main_word}", f"{main_word}boom", f"wild{main_word}"
-            ]
-        else:  # default/universal
-            base_names = [
-                main_word, f"my{main_word}", f"{main_word}hub",
-                f"{main_word}zone", f"go{main_word}", f"{main_word}app",
-                f"best{main_word}", f"{main_word}now", f"top{main_word}",
-                f"new{main_word}", f"{main_word}web", f"smart{main_word}"
-            ]
+             base_names.update([f"{main_word}ify", f"super{main_word}", f"{main_word}mania", f"epic{main_word}"])
     else:
-        # Fallback if no key words found
-        base_names = [clean_idea[:8], f"my{clean_idea[:6]}", f"{clean_idea[:6]}hub"]
-    
+        base_names.add(clean_idea[:12] if len(clean_idea) > 12 else clean_idea)
+        base_names.add(f"my{clean_idea[:8]}")
+
     domains = []
-    domains_per_extension = max(1, n // len(extensions))
+    base_names_list = list(base_names)
     
-    for ext_index, extension in enumerate(extensions):
-        start_index = ext_index * domains_per_extension
-        for i in range(domains_per_extension):
-            base_index = (start_index + i) % len(base_names)
-            base = base_names[base_index]
-            domain_name = f"{base}{extension}"
-            domains.append({"domain": domain_name})
-            print(f"Generated fallback domain: {domain_name}")
-    
-    # Fill remaining slots if needed
-    remaining = n - len(domains)
-    for i in range(remaining):
+    # Ensure we generate n domains, cycling through base names and extensions
+    for i in range(n):
+        base = base_names_list[i % len(base_names_list)]
         ext = extensions[i % len(extensions)]
-        base = base_names[i % len(base_names)]
-        domain_name = f"{base}{i}{ext}"
+        domain_name = f"{base}{ext}"
         domains.append({"domain": domain_name})
-        print(f"Generated additional fallback domain: {domain_name}")
     
-    return domains
+    print(f"Generated {len(domains)} fallback domains.")
+    return list(domains)
 
 def generate_fallback_domains(idea, style="default", extensions=None, n=20):
     return generate_enhanced_fallback_domains(idea, style, extensions, n)
@@ -366,16 +272,30 @@ def generate_fallback_domains(idea, style="default", extensions=None, n=20):
 # ---- Flask ----
 app = Flask(__name__, static_folder="static", template_folder="templates")
 
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["200 per day", "50 per hour"]
+)
+
 @app.route("/")
 def index():
     return render_template("index.html")
 
 @app.route("/api/suggest-fast", methods=["POST"])
+@limiter.limit("20 per minute")
 def api_suggest_fast():
     """Fast domain generation with parallel availability checking"""
     start_time = time.time()
     data = request.get_json(force=True)
+
+    # Sanitize user input
     idea = data.get("idea", "")
+    idea = re.sub(r'[^a-zA-Z0-9\s]', '', idea).strip()
+
+    if not idea:
+        return jsonify({"error": True, "message": "Idea cannot be empty or contain only special characters."}), 400
+
     style = data.get("style", "default")
     extensions = data.get("extensions", [])
     
@@ -400,7 +320,7 @@ def api_suggest_fast():
         print(f"Checking availability for {len(all_domains_to_check)} domains in parallel...")
         
         # Check all domains in parallel with higher concurrency
-        availability_results = check_domains_parallel_fast(all_domains_to_check, max_workers=15)
+        availability_results = check_domains_parallel(all_domains_to_check, max_workers=15)
         
         # Filter to only available domains
         available_domains = []
@@ -447,5 +367,5 @@ def api_suggest():
     # Redirect to the fast endpoint
     return api_suggest_fast()
 
-if __name__ == "__main__":
-    app.run(debug=True, port=int(os.getenv("PORT", 5000)))
+# To run this application in a production environment, use a WSGI server like Gunicorn.
+# Example: gunicorn --config gunicorn.conf.py app:app

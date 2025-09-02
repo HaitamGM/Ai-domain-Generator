@@ -1,0 +1,7 @@
+Flask
+google-generativeai
+python-dotenv
+gunicorn
+redis
+flask-limiter
+python-whois
