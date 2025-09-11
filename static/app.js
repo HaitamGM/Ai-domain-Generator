@@ -754,17 +754,29 @@ async function displayAvailableDomainsStreaming(domains) {
   }
 }
 
+// Extracts the correct extension, handling compound TLDs like .co.ma
+function extractExtension(domain) {
+    if (!domain) return "";
+    const parts = domain.split(".");
+    if (parts.length >= 3 && parts[parts.length - 1] === "ma") {
+        return parts.slice(-2).join(".");
+    }
+    return parts[parts.length - 1];
+}
+
 function filterDomainsByExtensions(domains, selectedExts) {
   const seen = new Set()
   const filtered = []
   domains.forEach((d) => {
-    const mainExt = d.domain.split(".").pop()
+    // Use the new robust extension extractor
+    const mainExt = extractExtension(d.domain)
     if (selectedExts.includes(mainExt) && !seen.has(d.domain)) {
       filtered.push(d)
       seen.add(d.domain)
     }
+    // Also fix for alternative domains if they exist
     ;(d.alt || []).forEach((altDomain) => {
-      const altExt = altDomain.split(".").pop()
+      const altExt = extractExtension(altDomain)
       if (selectedExts.includes(altExt) && !seen.has(altDomain)) {
         filtered.push({ domain: altDomain, status: "available", alt: [] })
         seen.add(altDomain)

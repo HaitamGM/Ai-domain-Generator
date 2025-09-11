@@ -199,18 +199,19 @@ def validate_domain_extensions(domains, allowed_extensions):
     valid_domains = []
     for domain_obj in domains:
         domain = domain_obj.get("domain", "")
-        domain_ext = "." + domain.split(".")[-1] if "." in domain else ""
+        if not domain:
+            continue
 
-        # Handle compound extensions like .net.ma
-        if domain.endswith(".ma"):
-            parts = domain.split(".")
-            if len(parts) >= 3:
-                domain_ext = "." + ".".join(parts[-2:])
+        # Use the robust extract_extension function
+        domain_ext = "." + extract_extension(domain)
 
         if domain_ext in allowed_extensions:
             valid_domains.append(domain_obj)
         else:
-            print(f"Filtered out domain {domain} - extension {domain_ext} not in allowed list")
+            # Enhanced logging for debugging
+            print(
+                f"Filtered out domain '{domain}' - Extracted extension '{domain_ext}' is not in the allowed list: {allowed_extensions}"
+            )
 
     return valid_domains
 
@@ -268,9 +269,8 @@ def suggest_domains(idea: str, style: str = "default", extensions: list = None, 
                 extension_counts = {}
                 for domain_obj in valid_domains:
                     domain = domain_obj["domain"]
-                    ext = "." + domain.split(".")[-1] if "." in domain else ""
-                    if domain.endswith(".ma") and len(domain.split(".")) >= 3:
-                        ext = "." + ".".join(domain.split(".")[-2:])
+                    # Use the robust extract_extension function
+                    ext = "." + extract_extension(domain)
                     extension_counts[ext] = extension_counts.get(ext, 0) + 1
 
                 print(f"Extension distribution: {extension_counts}")
