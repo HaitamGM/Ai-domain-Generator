@@ -26,10 +26,12 @@ STYLE_PROMPTS = {
         "Mix short punchy names with descriptive options."
     ),
     "moroccan": (
-        "Generate domains with authentic Moroccan flair using Darija/Arabic elements. "
-        "Examples: 'SoukTech', 'DarBusiness', 'AtlasShop', 'SahaServices'. "
-        "Blend Moroccan culture naturally with the business concept. "
-        "Use authentic Moroccan terms and cultural references."
+        "Generate domains with authentic Moroccan flair, using Darija, Arabic, and French words common in Morocco. "
+        "Combine the user's business idea with culturally significant terms. "
+        "Examples of good Moroccan-style names for a 'tech' business: 'FikraTech', 'CasaSolutions', 'MarocCreative', 'RiadDigital', 'SoukTech'. "
+        "The name should sound authentic and professional to a Moroccan audience. "
+        "Focus on blending the core business idea with Moroccan culture in a way that is natural and makes sense. "
+        "Do not just add random Moroccan words to the business idea."
     ),
     "professional": (
         "Create formal, corporate-style domains suitable for B2B and enterprise. "
@@ -67,6 +69,12 @@ CRITICAL REQUIREMENTS:
 - DISTRIBUTE EVENLY across ALL selected extensions
 - If you have {num_extensions} extensions, create roughly equal amounts for each
 - DO NOT favor any single extension over others
+- DOMAIN NAME RULES:
+  - Maximum 25 characters for the name (before the extension).
+  - Must only contain letters (a-z), numbers (0-9), and hyphens (-).
+  - Hyphens cannot be at the start or end of a name.
+  - DO NOT use country names as part of the domain, unless it is a part of a brand name (e.g. "moroccan-sunset.com" is ok, "france-web.com" is not).
+  - The name must be a single word or a short, memorable phrase.
 
 Examples with your extensions:
 {distribution_examples}
