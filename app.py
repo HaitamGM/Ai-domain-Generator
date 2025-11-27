@@ -376,7 +376,7 @@ def generate_fallback_domains(idea, style="default", extensions=None, n=20):
 
 # ---- Flask ----
 app = Flask(__name__, static_folder="static", template_folder="templates")
-
+application = app
 
 @app.route("/")
 def index():
