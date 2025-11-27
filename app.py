@@ -253,7 +253,7 @@ def suggest_domains(idea: str, style: str = "default", extensions: list = None, 
         text = resp.text.strip()
         print(f"Received response from Gemini: {text[:200]}...")
 
-        text = text.replace('\`\`\`json', '').replace('\`\`\`', '').strip()
+        text = text.replace('```json', '').replace('```', '').strip()
 
         # Try to find JSON array in the response
         json_match = re.search(r'\[.*?\]', text, re.DOTALL)
