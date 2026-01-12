@@ -24,6 +24,252 @@ let selectedStyle = "default" // Default selected style
 const decodingInterval = null
 let messageInterval = null
 let displayedDomainsCount = 0 // Counter for displayed domains
+let currentPrompt = "" // Store the current prompt for favorites association
+
+// Favorites System
+const favoritesSystem = {
+  // Storage key
+  STORAGE_KEY: "domain_favorites_v1",
+
+  // State
+  isOpen: false,
+
+  // Initialize
+  init() {
+    this.sidebar = document.getElementById("favoritesSidebar")
+    this.overlay = document.getElementById("favoritesOverlay")
+    this.content = document.getElementById("favoritesContent")
+    this.toggleBtn = document.getElementById("favoritesToggle")
+    this.closeBtn = document.getElementById("closeFavorites")
+
+    this.bindEvents()
+    this.render()
+  },
+
+  // Bind DOM events
+  bindEvents() {
+    this.toggleBtn.addEventListener("click", () => this.toggle())
+    this.closeBtn.addEventListener("click", () => this.close())
+    this.overlay.addEventListener("click", () => this.close())
+  },
+
+  // Toggle sidebar
+  toggle() {
+    if (this.isOpen) this.close()
+    else this.open()
+  },
+
+  open() {
+    this.sidebar.classList.add("open")
+    this.overlay.classList.add("open")
+    this.isOpen = true
+    this.render()
+  },
+
+  close() {
+    this.sidebar.classList.remove("open")
+    this.overlay.classList.remove("open")
+    this.isOpen = false
+  },
+
+  // Get all favorites
+  getAll() {
+    try {
+      const stored = localStorage.getItem(this.STORAGE_KEY)
+      return stored ? JSON.parse(stored) : {}
+    } catch (e) {
+      console.error("Error reading favorites:", e)
+      return {}
+    }
+  },
+
+  // Add a favorite
+  add(domain, prompt) {
+    if (!prompt) prompt = "General"
+    const favorites = this.getAll()
+
+    if (!favorites[prompt]) {
+      favorites[prompt] = []
+    }
+
+    if (!favorites[prompt].includes(domain)) {
+      favorites[prompt].push(domain)
+      this.save(favorites)
+      if (this.isOpen) this.render()
+    }
+  },
+
+  // Remove a favorite
+  remove(domain, prompt) {
+    const favorites = this.getAll()
+    if (favorites[prompt]) {
+      favorites[prompt] = favorites[prompt].filter((d) => d !== domain)
+      if (favorites[prompt].length === 0) {
+        delete favorites[prompt]
+      }
+      this.save(favorites)
+    }
+    // Re-render if open
+    if (this.isOpen) this.render()
+
+    // Update button in main list if visible
+    const btn = document.querySelector(`.favorite-btn[data-domain="${domain}"]`)
+    if (btn) {
+       btn.classList.remove('active');
+       btn.innerHTML = '<i class="far fa-heart"></i>';
+    }
+  },
+
+  // Remove an entire group
+  removeGroup(prompt) {
+    if(!confirm(`Delete all favorites for "${prompt}"?`)) return;
+
+    const favorites = this.getAll();
+    if(favorites[prompt]) {
+        // Update buttons for these domains if they are currently visible
+        favorites[prompt].forEach(domain => {
+            const btn = document.querySelector(`.favorite-btn[data-domain="${domain}"]`);
+            if (btn) {
+                btn.classList.remove('active');
+                btn.innerHTML = '<i class="far fa-heart"></i>';
+            }
+        });
+
+        delete favorites[prompt];
+        this.save(favorites);
+    }
+    if (this.isOpen) this.render();
+  },
+
+  // Check if favorite
+  isFavorite(domain, prompt) {
+    const favorites = this.getAll()
+    // If prompt is provided, check specifically for that prompt
+    if (prompt && favorites[prompt]) {
+      return favorites[prompt].includes(domain)
+    }
+    // Otherwise check all prompts (global check)
+    return Object.values(favorites).some((list) => list.includes(domain))
+  },
+
+  // Save to storage
+  save(data) {
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data))
+  },
+
+  // Render sidebar content
+  render() {
+    const favorites = this.getAll()
+    const prompts = Object.keys(favorites).reverse() // Newest prompts first? Or maybe sort by date if we had it.
+
+    if (prompts.length === 0) {
+      this.content.innerHTML = `
+                <div class="empty-favorites">
+                    <i class="far fa-heart"></i>
+                    <p>No favorites yet. Like some domains to save them here!</p>
+                </div>
+            `
+      return
+    }
+
+    this.content.innerHTML = ""
+
+    prompts.forEach((prompt) => {
+      const groupDiv = document.createElement("div")
+      groupDiv.className = "favorite-group"
+
+      // Create Header
+      const headerDiv = document.createElement("div")
+      headerDiv.className = "group-header"
+
+      const groupPromptSpan = document.createElement("span");
+      groupPromptSpan.className = "group-prompt";
+
+      const searchIcon = document.createElement("i");
+      searchIcon.className = "fas fa-search";
+      searchIcon.style.cssText = "font-size: 0.8em; opacity: 0.7; margin-right: 6px;";
+
+      groupPromptSpan.appendChild(searchIcon);
+      groupPromptSpan.appendChild(document.createTextNode(prompt)); // Safe text node
+
+      const groupActionsDiv = document.createElement("div");
+      groupActionsDiv.className = "group-actions";
+
+      const deleteGroupBtn = document.createElement("button");
+      deleteGroupBtn.className = "delete-group-btn";
+      deleteGroupBtn.title = "Delete group";
+      deleteGroupBtn.innerHTML = '<i class="fas fa-trash-alt"></i>';
+      deleteGroupBtn.addEventListener("click", () => this.removeGroup(prompt));
+
+      groupActionsDiv.appendChild(deleteGroupBtn);
+      headerDiv.appendChild(groupPromptSpan);
+      headerDiv.appendChild(groupActionsDiv);
+
+      groupDiv.appendChild(headerDiv)
+
+      const domainsList = document.createElement("div")
+      favorites[prompt].forEach((domain) => {
+        const itemDiv = document.createElement("div")
+        itemDiv.className = "favorite-item"
+
+        const domainNameSpan = document.createElement("span");
+        domainNameSpan.className = "fav-domain-name";
+        domainNameSpan.textContent = domain; // Safe text content
+
+        const favActionsDiv = document.createElement("div");
+        favActionsDiv.className = "fav-actions";
+
+        // Register Button
+        const registerBtn = document.createElement("button");
+        registerBtn.className = "fav-action-btn register";
+        registerBtn.title = "Register";
+        registerBtn.innerHTML = '<i class="fas fa-shopping-cart"></i>';
+        registerBtn.addEventListener("click", () => {
+             window.open(`https://client.capconnect.com/cart.php?a=add&domain=register&query=${encodeURIComponent(domain)}`, "_blank")
+        });
+
+        // Copy Button
+        const copyBtn = document.createElement("button");
+        copyBtn.className = "fav-action-btn copy";
+        copyBtn.title = "Copy";
+        copyBtn.innerHTML = '<i class="fas fa-copy"></i>';
+        copyBtn.addEventListener("click", async function() {
+             try {
+                await navigator.clipboard.writeText(domain);
+                const icon = this.querySelector("i");
+                icon.className = "fas fa-check";
+                setTimeout(() => icon.className = "fas fa-copy", 1500);
+             } catch(err) {}
+        });
+
+        // Delete Button
+        const deleteBtn = document.createElement("button");
+        deleteBtn.className = "fav-action-btn delete";
+        deleteBtn.title = "Remove";
+        deleteBtn.innerHTML = '<i class="fas fa-times"></i>';
+        deleteBtn.addEventListener("click", () => this.remove(domain, prompt));
+
+        favActionsDiv.appendChild(registerBtn);
+        favActionsDiv.appendChild(copyBtn);
+        favActionsDiv.appendChild(deleteBtn);
+
+        itemDiv.appendChild(domainNameSpan);
+        itemDiv.appendChild(favActionsDiv);
+
+        domainsList.appendChild(itemDiv)
+      })
+
+        itemDiv.querySelector(".delete").addEventListener("click", () => this.remove(domain, prompt))
+
+        domainsList.appendChild(itemDiv)
+      })
+
+      groupDiv.appendChild(domainsList)
+      this.content.appendChild(groupDiv)
+    })
+  },
+}
+
 
 // Auto-scroll variables - ChatGPT-like behavior
 let isAutoScrolling = false
@@ -215,9 +461,18 @@ async function createDomainRowWithAI(domain) {
   const row = document.createElement("div")
   row.className = "domain-row"
   row.style.opacity = "0"
+
+  // Check if already favorited (in the current prompt context)
+  const isFav = favoritesSystem.isFavorite(domain.domain, currentPrompt)
+  const heartClass = isFav ? "fas fa-heart" : "far fa-heart"
+  const activeClass = isFav ? "active" : ""
+
   row.innerHTML = `
         <span class="domain-name"></span>
         <div class="domain-actions">
+            <button class="favorite-btn ${activeClass}" data-domain="${domain.domain}" title="Add to favorites">
+                <i class="${heartClass}"></i>
+            </button>
             <button class="register-btn" data-domain="${domain.domain}">
                 <i class="fas fa-shopping-cart"></i>
                 <span>REGISTER</span>
@@ -233,7 +488,21 @@ async function createDomainRowWithAI(domain) {
   row.style.opacity = "1"
 
   const domainNameEl = row.querySelector(".domain-name")
-  await typewriterEffect(domainNameEl, domain.domain)
+
+  // Favorite Button Logic
+  const favBtn = row.querySelector(".favorite-btn")
+  favBtn.addEventListener("click", () => {
+      const isNowFav = favoritesSystem.isFavorite(domain.domain, currentPrompt)
+      if (isNowFav) {
+          favoritesSystem.remove(domain.domain, currentPrompt)
+          favBtn.classList.remove("active")
+          favBtn.innerHTML = '<i class="far fa-heart"></i>'
+      } else {
+          favoritesSystem.add(domain.domain, currentPrompt)
+          favBtn.classList.add("active")
+          favBtn.innerHTML = '<i class="fas fa-heart"></i>'
+      }
+  })
 
   row.querySelector(".register-btn").addEventListener("click", () => {
     window.open(`https://client.capconnect.com/cart.php?a=add&domain=register&query=${domain.domain}`, "_blank")
@@ -251,6 +520,8 @@ async function createDomainRowWithAI(domain) {
       alert(`Domain copied: ${domain.domain}`)
     }
   })
+
+  await typewriterEffect(domainNameEl, domain.domain)
 
   displayedDomainsCount++
   setTimeout(() => {
@@ -363,6 +634,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initializeStyleSelector()
   initScrollDetection()
   updateSelectedCount()
+  favoritesSystem.init() // Initialize Favorites
 
   themeToggle.addEventListener("click", (e) => {
     e.preventDefault()
@@ -409,6 +681,8 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault()
   const idea = input.value.trim()
   if (!idea) return
+
+  currentPrompt = idea // Store current prompt
 
   const selectedExts = getSelectedExtensions()
   if (selectedExts.length === 0) {
